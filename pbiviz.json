@@ -1,0 +1,26 @@
+{
+  "visual": {
+    "name": "survivalCurve",
+    "displayName": "Survival Curve",
+    "guid": "survivalCurve65DB9C0426974F3E8363EA24EA3A9954",
+    "visualClassName": "Visual",
+    "description": "A survival curve chart",
+    "gitHubUrl": ""
+  },
+  "apiVersion": "1.13.0",
+  "author": {
+    "name": "",
+    "email": ""
+  },
+  "assets": {
+    "icon": "assets/icon.png"
+  },
+  "externalJS": [
+    "node_modules/powerbi-visuals-utils-dataviewutils/lib/index.js",
+    "node_modules/chart.js/dist/Chart.min.js"
+  ],
+  "style": "style/visual.less",
+  "capabilities": "capabilities.json",
+  "dependencies": "dependencies.json",
+  "stringResources": []
+}

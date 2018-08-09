@@ -18,61 +18,52 @@ module powerbi.extensibility.visual {
 
         public update(options: VisualUpdateOptions) {
             this.settings = Visual.parseSettings(options && options.dataViews && options.dataViews[0]);
+            const sourceDatasets = options.dataViews[0].categorical.values
+            const { colorPalette } = this
 
-            // data handling
-            // TODO: handle multiple datasets
-            const {
-                values: data,
-                maxLocal: max
-            } = options.dataViews[0].categorical.values["0"]
-            const startCustomers = data.length
-            const disconnectionsByDay = []
-            const chartLabel = []
+            const filteredDatasets = sourceDatasets.map(({ source, values }) => ({
+                label: source.groupName,
+                data: values.filter(isNotNull)
+            }))
 
-            // create array from 0 to max
-            for (let i = 0; i <= max; i ++) {
-                disconnectionsByDay[i] = 0
-                chartLabel[i] = i
-            }
-
-            // pivot data to be stored by day (array index), only holding count of disconnections on that day
-            data.reduce((total, next) => {
-                total[next] += 1
-                return total
-            }, disconnectionsByDay)
+            const pivotedDatasets = filteredDatasets.map(({ label, data }) => ({
+                label,
+                initial: data.length,
+                data: pivotByDay(data)
+            }))
 
             // create lifetime % by day
-            const { retentionByDay } = disconnectionsByDay.reduce(({ retentionByDay, runningTotal }, disconnections) => {
-                runningTotal -= ((disconnections / startCustomers) * 100)
-                retentionByDay.push(Math.round(runningTotal * 10) / 10)
-                return { retentionByDay, runningTotal }
-            }, {
-                retentionByDay: [],
-                runningTotal: 100
-            })
+            const processedDatasets = pivotedDatasets.map(({ label, initial, data }) => ({
+                label,
+                data: data.reduce(({ runningTotal, retentionByDay }, disconnections) => {
+                    runningTotal -= disconnections
+                    retentionByDay.push(Math.round(runningTotal / initial * 100))
+                    return { retentionByDay, runningTotal, initial }
+                }, {
+                    // starting values passed into reduce
+                    runningTotal: initial,
+                    retentionByDay: [],
+                }).retentionByDay
+            }))
 
-            // this.target.innerHTML = `
-            //     Color: ${this.colorPalette.colors[0].value}
-            //     Data: ${JSON.stringify(data)}
-            //     Data length: ${data.length}
-            //     Highest lifetime: ${max}
-            //     Arr to max: ${JSON.stringify(disconnectionsByDay)}
-            // `
+            const maxLength = max(processedDatasets.map(({ data }) => data.length))
+            const decimate = getDecimator(maxLength)
+
+            const labels = decimate( generateArray(maxLength, { increment: true }) )
+            const datasets = processedDatasets.map(({ label, data }, index) => ({
+                label,
+                data: decimate(data),
+                ...getColors(colorPalette, index)
+            }))
 
             // building the chart
-            // note that the <any> type hint stops the compiler from complaining
+            // note that the <any> type hint for window stops the compiler from complaining
             const { Chart } = (<any>window)
             new Chart("chartId", {
                 type: 'line',
                 data: {
-                    labels: decimateData(chartLabel),
-                    datasets: [
-                        {
-                            label: "Base",
-                            data: decimateData(retentionByDay),
-                            ...getColors(this.colorPalette, 0)
-                        }
-                    ]
+                    labels,
+                    datasets
                 },
                 options: {
                     scales: {
@@ -82,8 +73,7 @@ module powerbi.extensibility.visual {
                                 display: true
                             },
                             ticks: {
-                                min: 0,
-                                max
+                                min: 0
                             }
                         }],
                         yAxes: [{
@@ -98,12 +88,12 @@ module powerbi.extensibility.visual {
                     },
                     legend: {
                         // hide legend if only one dataset
-                        display: options.dataViews.length > 1,
+                        display: datasets.length > 1,
                         position: 'right'
                     },
                     tooltips: {
                         callbacks: {
-                            label(tooltipItem, data) {
+                            label(tooltipItem) {
                                 return [
                                     `Days: ${tooltipItem.xLabel}`,
                                     `% remaining: ${tooltipItem.yLabel}%`,
@@ -111,6 +101,13 @@ module powerbi.extensibility.visual {
                             },
                             title([ tooltipItem ], data) {
                                 return data.datasets[tooltipItem.datasetIndex].label || "Tooltip"
+                            },
+                            labelColor(tooltipItem) {
+                                const color = colorPalette.colors[tooltipItem.datasetIndex].value
+                                return {
+                                    borderColor: color,
+                                    backgroundColor: color
+                                }
                             }
                         }
                     },
@@ -138,24 +135,65 @@ module powerbi.extensibility.visual {
 }
 
 /**
- * decimates data based on provided cutoff, defaulting to 20 values
+ * Helper function to create array filled with `max` zeroes
+ * Used in reduce functions above
  */
-function decimateData(data, cutoff = 30) {
-    const pointsCount = data.length
+function generateArray(max, { increment } = { increment: true }) {
+    const arr = []
 
-    if (pointsCount < cutoff) {
-        // data is sparse enough that there's no need to decimate it
-        return data
+    for (let i = 0; i <= max; i ++) {
+        arr[i] = increment ? i : 0
     }
 
-    // round to nearest integer
-    let stepNaive = Math.round(pointsCount / cutoff)
-    // round to nearest 10/100/...
-    let stepRounded = roundStep(stepNaive)
+    return arr
+}
 
-    // due to the nature of a categorical axis, loses some data at top end
-    // niggly but can't do anything about it without forking Chart.js or changing chart library
-    return data.filter((_, index) =>  index % stepRounded === 0 )
+/**
+ * Check that value isn't null
+ * Used in filter above
+ */
+function isNotNull(val) {
+    return val !== null
+}
+
+/**
+ * Get max value in array
+ */
+function max(arr) {
+    return arr.reduce((a, b) => Math.max(a, b))
+}
+
+function pivotByDay(arr) {
+    return arr.reduce((total, next) => {
+        total[next] += 1
+        return total
+    }, generateArray(max(arr), { increment: false }) )
+}
+
+/**
+ * Returns decimator function
+ * Doing like this so that all datasets and labels are decimated the same way, rather than from scratch each time
+ * Would otherwise break labels
+ */
+function getDecimator(maxLength, cutoff = 30) {
+    if (maxLength < cutoff) {
+        // all data is sparse enough that there's no need to decimate it
+        // expecting a function returned, so return a function that leaves all data unchanged
+        // note that if one category is sparse and others aren't, sparse category will still be decimated - pitfall of the Chart.js line axis being categorical only
+        return data => data
+    }
+
+    return data => {
+        // round to nearest integer
+        const stepNaive = Math.round(maxLength / cutoff)
+
+        // round to nearest power of 10
+        const stepRounded = roundStep(stepNaive)
+
+        // due to the nature of a categorical axis, loses some data at top end
+        // niggly but can't do anything about it without forking Chart.js or changing chart library
+        return data.filter((_, index) =>  index % stepRounded === 0 )
+    }
 }
 
 /**

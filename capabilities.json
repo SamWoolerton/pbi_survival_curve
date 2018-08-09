@@ -14,6 +14,11 @@
           "numeric": true
         }
       ]
+    },
+    {
+      "displayName": "Categories",
+      "name": "categories",
+      "kind": "Grouping"
     }
   ],
   "objects": {
@@ -69,19 +74,27 @@
         "categories": {
           "for": {
             "in": "identifier"
-          }
-        },
-        "values": {
-          "select": [
-            {
-              "bind": {
-                "to": "lifetime"
-              }
-            }
-          ],
+          },
           "dataReductionAlgorithm": {
             "top": {
               "count": 30000
+            }
+          }
+        },
+        "values": {
+          "group": {
+            "by": "categories",
+            "select": [
+              {
+                "bind": {
+                  "to": "lifetime"
+                }
+              }
+            ],
+            "dataReductionAlgorithm": {
+              "top": {
+                "count": 30000
+              }
             }
           }
         }

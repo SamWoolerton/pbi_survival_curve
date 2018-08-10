@@ -1,3 +1,6 @@
-.node_modules/
+# npm packages
+node_modules/
+
+# Chart.js
 .api/
 .tmp/

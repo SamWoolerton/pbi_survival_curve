@@ -1,5 +1,9 @@
 {
-  "name": "visual",
+  "name": "survival_curve",
+  "description": "Generates a survival curve showing what % of group 'survive' for how long.",
+  "supportUrl": "https://github.com/SamWoolerton/pbi_survival_curve",
+  "author": "Sam Woolerton",
+  "email": "samuelwoolerton@gmail.com",
   "dependencies": {
     "@types/chart.js": "^2.7.30",
     "chart.js": "^2.7.2",

@@ -98,7 +98,20 @@
             }
           }
         }
-      }
+      },
+      "conditions": [
+        {
+          "identifier": {
+            "max": 1
+          },
+          "lifetime": {
+            "max": 1
+          },
+          "categories": {
+            "max": 1
+          }
+        }
+      ]
     }
   ]
 }

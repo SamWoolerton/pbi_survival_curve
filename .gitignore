@@ -1,6 +1,6 @@
 # npm packages
 node_modules/
 
-# Chart.js
+# Power BI or Chart.js
 .api/
 .tmp/

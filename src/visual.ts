@@ -8,11 +8,6 @@ module powerbi.extensibility.visual {
 
         constructor(options: VisualConstructorOptions) {
             this.target = options.element;
-            this.target.innerHTML = `
-                <div>
-                    <canvas id="chartId" />
-                </div>
-            `;
             this.colorPalette = options.host.colorPalette;
         }
 
@@ -55,6 +50,14 @@ module powerbi.extensibility.visual {
                 data: decimate(data),
                 ...getColors(colorPalette, index)
             }))
+
+            // have to do this every time, otherwise the chart isn't destroyed when updating data/filtering etc
+            // and will appear in random flashes when hovering
+            this.target.innerHTML = `
+                <div>
+                    <canvas id="chartId" />
+                </div>
+            `;
 
             // building the chart
             // note that the <any> type hint for window stops the compiler from complaining
@@ -139,6 +142,15 @@ module powerbi.extensibility.visual {
  * Used in reduce functions above
  */
 function generateArray(max, { increment } = { increment: true }) {
+    /**
+     * Would be great to use a more functional approach here, but TS throws errors when you use some ES6 methods
+     */
+
+    // const arr = Array(max).fill(0)
+    // return increment
+    //     ? arr.map((_, i) => i)
+    //     : arr
+    
     const arr = []
 
     for (let i = 0; i <= max; i ++) {

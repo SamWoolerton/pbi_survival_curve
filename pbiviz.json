@@ -6,8 +6,8 @@
     "visualClassName": "Visual",
     "version": "1.0.0",
     "description": "A survival curve chart",
-    "supportUrl": "",
-    "gitHubUrl": ""
+    "supportUrl": "https://github.com/SamWoolerton/pbi_survival_curve",
+    "gitHubUrl": "https://github.com/SamWoolerton/pbi_survival_curve"
   },
   "apiVersion": "1.13.0",
   "author": {
